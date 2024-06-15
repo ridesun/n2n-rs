@@ -1,0 +1,11 @@
+[package]
+name = "n2n-rs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+thiserror="1.0.61"
+anyhow="1.0.86"
+libc="0.2.155"
+[dependencies.n2n-sys]
+path = "sys"

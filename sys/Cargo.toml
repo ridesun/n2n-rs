@@ -1,0 +1,11 @@
+[package]
+name    = "n2n-sys"
+version = "0.1.0"
+build   = "build.rs"
+edition = "2021"
+links = "n2n"
+
+[dependencies]
+libc="0.2.155"
+[build-dependencies]
+bindgen = "0.69.4"
