@@ -1,11 +1,12 @@
 [package]
-name    = "n2n-sys"
-version = "0.1.0"
-build   = "build.rs"
+name = "n2n-sys"
+version = "3.1.1"
+build = "build.rs"
 edition = "2021"
+license = "GPL-3.0"
 links = "n2n"
 
 [dependencies]
-libc="0.2.155"
+libc = "0.2.155"
 [build-dependencies]
 bindgen = "0.69.4"

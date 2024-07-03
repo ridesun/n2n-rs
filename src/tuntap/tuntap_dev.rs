@@ -1,5 +1,4 @@
 use std::mem::MaybeUninit;
-use std::ptr::addr_of_mut;
 
 use crate::ffi::tuntap_dev;
 
@@ -17,8 +16,9 @@ impl TunTapDev {
 impl TunTapDev {
     pub(crate) fn init() -> Self {
         unsafe {
-            let mut uninit = MaybeUninit::<tuntap_dev>::uninit().assume_init();
-            let ptr = addr_of_mut!(uninit);
+            let uninit = MaybeUninit::<tuntap_dev>::uninit();
+            let init = uninit.assume_init();
+            let ptr = Box::into_raw(Box::new(init));
             TunTapDev { ptr }
         }
     }

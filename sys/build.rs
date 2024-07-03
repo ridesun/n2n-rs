@@ -61,7 +61,22 @@ fn main() {
     let bindings = bindgen::Builder::default()
         .clang_args(["-I", libdir_path.clone().join("include").to_str().unwrap()])
         .ctypes_prefix("libc")
-        .header(libdir_path.join("include").join("n2n.h").to_str().unwrap())
+        .header(
+            libdir_path
+                .clone()
+                .join("include")
+                .join("n2n.h")
+                .to_str()
+                .unwrap(),
+        )
+        .header(
+            libdir_path
+                .clone()
+                .join("include")
+                .join("random_numbers.h")
+                .to_str()
+                .unwrap(),
+        )
         .layout_tests(false)
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .generate()
