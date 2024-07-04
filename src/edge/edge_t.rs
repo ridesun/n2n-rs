@@ -1,11 +1,7 @@
-use std::ptr;
-use std::ptr::addr_of_mut;
-
-use sys::tuntap_close;
-
 use crate::ffi::n2n_edge_t;
 use crate::supernode_connect;
 
+#[derive(PartialEq, Eq, Clone)]
 pub struct Edge {
     ptr: *mut n2n_edge_t,
 }
@@ -39,8 +35,7 @@ impl Edge {
 impl Drop for Edge {
     fn drop(&mut self) {
         unsafe {
-            tuntap_close(addr_of_mut!((*self.as_mut_ptr()).device));
-            ptr::drop_in_place(self.as_mut_ptr())
+            let _ = Box::from_raw(self.ptr);
         }
     }
 }

@@ -1,6 +1,5 @@
 pub extern crate n2n_sys as sys;
 
-use std::ffi::CString;
 use std::mem::{size_of, MaybeUninit};
 use std::ptr::{addr_of_mut, null_mut};
 use std::sync::atomic::AtomicBool;
@@ -9,16 +8,15 @@ use std::thread;
 use std::thread::JoinHandle;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use libc::{c_int, fd_set, time_t, timeval, FD_ISSET, FD_SET, FD_ZERO};
+use libc::{c_int, fd_set, time_t, timeval, FD_ISSET, FD_SET, FD_ZERO, SIGPIPE, SIG_IGN};
 
 use sys::{
-    edge_conf_add_supernode, edge_init, edge_term, edge_term_conf, n2n_edge_t,
-    n2n_resolve_parameter_t, n2n_seed, n2n_srand, n2n_transform_N2N_TRANSFORM_ID_AES,
-    print_edge_stats, run_edge_loop, tuntap_open, BOOTSTRAP_TIMEOUT, N2N_SN_PKTBUF_SIZE,
-    NUMBER_SN_PINGS_INITIAL, SWEEP_TIME, TUNTAP_IP_MODE_SN_ASSIGN,
+    edge_init, edge_term, edge_term_conf, n2n_edge_t, n2n_resolve_parameter_t, n2n_seed, n2n_srand,
+    print_edge_stats, run_edge_loop, tuntap_close, tuntap_open, BOOTSTRAP_TIMEOUT,
+    N2N_SN_PKTBUF_SIZE, NUMBER_SN_PINGS_INITIAL, SWEEP_TIME, TUNTAP_IP_MODE_SN_ASSIGN,
 };
 
-use crate::edge::edge_conf::EdgeConf;
+use crate::edge::edge_conf::EdgeConfBuilder;
 use crate::edge::edge_t::Edge;
 use crate::tuntap::tun_tap_priv_config::TunTapPrivConfig;
 use crate::tuntap::tuntap_dev::TunTapDev;
@@ -34,15 +32,13 @@ pub struct EdgeJob {
 }
 
 impl EdgeJob {
-    pub fn new(sr: &str, sn: &str, community_name: &str) -> anyhow::Result<Self> {
-        //FOR TRACKING
-        use sys::{setTraceLevel, TRACE_DEBUG};
-        unsafe {
-            setTraceLevel(TRACE_DEBUG as c_int);
-        }
-
+    pub fn new(encrypt_key: &str, supernode: &str, community_name: &str) -> anyhow::Result<Self> {
         //init n2n_edge_conf_t,n2n_tuntap_priv_config_t and tuntap_dev
-        let conf = EdgeConf::default();
+        let conf = EdgeConfBuilder::new()
+            .encrypt_key(encrypt_key)
+            .supernode(supernode)
+            .community_name(community_name)
+            .build()?;
         let ec = TunTapPrivConfig::default();
         let tuntap = TunTapDev::init();
 
@@ -60,17 +56,6 @@ impl EdgeJob {
         let mut seek_answer = 1;
         let main_job = {
             unsafe {
-                let conf_ptr = conf.as_mut_ptr();
-                (*conf_ptr).transop_id = n2n_transform_N2N_TRANSFORM_ID_AES;
-                let key = CString::new(sr).unwrap();
-                let key_ptr = key.as_ptr();
-                let sn = CString::new(sn).unwrap();
-                let supernode_ptr = sn.as_ptr();
-                (*conf_ptr).community_name[..community_name.len()]
-                    .copy_from_slice(community_name.as_bytes());
-                (*conf_ptr).encrypt_key = libc::strdup(key_ptr);
-                edge_conf_add_supernode(conf.as_mut_ptr(), supernode_ptr);
-
                 let rc_ptr: *mut c_int = &mut rc;
                 let eee = Edge::wrap(edge_init(conf.as_mut_ptr(), rc_ptr));
 
@@ -160,11 +145,14 @@ impl EdgeJob {
                 (*eee.as_mut_ptr()).sn_wait = 1;
                 (*eee.as_mut_ptr()).last_register_req = 0;
                 thread::spawn(move || {
+                    libc::signal(SIGPIPE, SIG_IGN);
+
                     let keep_ptr = keep.as_ptr();
                     eee.keep_running(keep_ptr);
                     run_edge_loop(eee.as_mut_ptr());
                     print_edge_stats(eee.as_mut_ptr());
                     edge_term_conf(addr_of_mut!((*eee.as_mut_ptr()).conf));
+                    tuntap_close(addr_of_mut!((*eee.as_mut_ptr()).device));
                     edge_term(eee.as_mut_ptr());
                 })
             }
@@ -179,6 +167,13 @@ impl EdgeJob {
 fn random() {
     unsafe {
         n2n_srand(n2n_seed());
+    }
+}
+
+pub fn log_debug() {
+    use sys::{setTraceLevel, TRACE_DEBUG};
+    unsafe {
+        setTraceLevel(TRACE_DEBUG as c_int);
     }
 }
 
