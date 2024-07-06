@@ -8,4 +8,7 @@
 #![allow(clippy::type_complexity)]
 #![allow(clippy::upper_case_acronyms)]
 
+#[cfg(target_os = "linux")]
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+#[cfg(target_os = "windows")]
+include!(concat!(env!("OUT_DIR"), "\\bindings.rs"));
